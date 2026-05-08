@@ -1,0 +1,114 @@
+NEW_FILE_CODE
+### ============================================
+### 基坑工程安全管理系统 - API 测试集合
+### ============================================
+
+
+### 临时接口：重置 admin 密码为 123456
+GET http://localhost:8080/api/auth/reset-admin-pwd
+
+### 1. 登录获取 Token（成功场景）
+# @name login_success
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "123456"
+}
+
+> {%
+    // 自动提取并保存 token
+    client.global.set("auth_token", response.body.data.token);
+    client.log("✅ 登录成功！");
+    client.log("📝 Token: " + response.body.data.token.substring(0, 50) + "...");
+    client.log("👤 用户: " + response.body.data.userInfo.username);
+    client.log("🎭 角色: " + response.body.data.userInfo.roles.join(", "));
+%}
+
+###
+
+### 2. 登录失败 - 错误密码
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "wrongpassword"
+}
+
+###
+
+### 3. 登录失败 - 用户不存在
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "nonexistent",
+  "password": "password"
+}
+
+###
+
+### 4. 获取用户列表（需要认证）
+GET http://localhost:8080/api/auth/users
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+###
+
+### 5. 获取特定用户信息
+GET http://localhost:8080/api/auth/users/1
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+###
+
+### 6. 无效 Token 测试
+GET http://localhost:8080/api/auth/users
+Authorization: Bearer invalid-token-12345
+Content-Type: application/json
+
+###
+
+### 7. 无 Token 访问（应该被拒绝）
+GET http://localhost:8080/api/auth/users
+Content-Type: application/json
+
+###
+
+### 8. 创建新用户（需要 ADMIN 权限）
+POST http://localhost:8080/api/auth/users
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "test123456",
+  "realName": "测试用户",
+  "phone": "13800138000",
+  "roleIds": [2]
+}
+
+###
+
+### 9. 修改用户信息
+PUT http://localhost:8080/api/auth/users/2
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "realName": "修改后的名字",
+  "phone": "13900139000",
+  "status": 1,
+  "roleIds": [2]
+}
+
+###
+
+### 10. 删除用户
+DELETE http://localhost:8080/api/auth/users/2
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+###
