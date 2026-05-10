@@ -20,9 +20,9 @@ spring:
 # Deleted:      path: /h2-console
 
 mybatis:
+  mapper-locations: classpath:mapper/*.xml
   configuration:
     map-underscore-to-camel-case: true
-
 
 deepseek:
   api-key: ${DEEPSEEK_API_KEY:your-api-key-here}
@@ -31,3 +31,5 @@ deepseek:
     chat: deepseek-chat
     reasoner: deepseek-reasoner
 
+server:
+  port: 8081
