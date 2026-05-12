@@ -85,28 +85,83 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <div class="pagination">
-        <el-pagination
-          v-model:current-page="pagination.currentPage"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
     </div>
+
+    <!-- 新增/编辑设备对话框 -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="formData" :rules="formRules" ref="formRef" label-width="100px">
+        <el-form-item label="设备名称" prop="deviceName">
+          <el-input v-model="formData.deviceName" placeholder="请输入设备名称" />
+        </el-form-item>
+        <el-form-item label="设备类型" prop="deviceType">
+          <el-select v-model="formData.deviceType" placeholder="请选择设备类型" style="width: 100%">
+            <el-option label="测斜仪" value="测斜仪" />
+            <el-option label="水位计" value="水位计" />
+            <el-option label="土压力计" value="土压力计" />
+            <el-option label="钢筋应力计" value="钢筋应力计" />
+            <el-option label="全站仪" value="全站仪" />
+            <el-option label="伺服轴力计" value="伺服轴力计" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="安装位置" prop="location">
+          <el-input v-model="formData.location" placeholder="请输入安装位置" />
+        </el-form-item>
+        <el-form-item label="安装日期" prop="installDate">
+          <el-date-picker
+            v-model="formData.installDate"
+            type="date"
+            placeholder="请选择日期"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="设备状态" prop="status">
+          <el-select v-model="formData.status" placeholder="请选择状态" style="width: 100%">
+            <el-option label="正常运行" value="normal" />
+            <el-option label="故障" value="fault" />
+            <el-option label="维护中" value="maintenance" />
+            <el-option label="已报废" value="scrapped" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 
 const loading = ref(false)
+const dialogVisible = ref(false)
+const formRef = ref()
+const isEdit = ref(false)
+const editingRow = ref(null)
+
+const formData = reactive({
+  deviceName: '',
+  deviceType: '',
+  location: '',
+  installDate: '',
+  status: 'normal'
+})
+
+const formRules = {
+  deviceName: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
+  deviceType: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
+  location: [{ required: true, message: '请输入安装位置', trigger: 'blur' }],
+  installDate: [{ required: true, message: '请选择安装日期', trigger: 'change' }]
+}
 
 const searchForm = reactive({
   deviceName: '',
@@ -232,12 +287,49 @@ const handleReset = () => {
   loadData()
 }
 
+const dialogTitle = computed(() => isEdit.value ? '编辑设备' : '新增设备')
+
 const handleAdd = () => {
-  ElMessage.info('新增设备功能待开发')
+  isEdit.value = false
+  editingRow.value = null
+  formData.deviceName = ''
+  formData.deviceType = ''
+  formData.location = ''
+  formData.installDate = ''
+  formData.status = 'normal'
+  dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
-  ElMessage.info(`编辑设备: ${row.deviceName}`)
+  isEdit.value = true
+  editingRow.value = row
+  formData.deviceName = row.deviceName
+  formData.deviceType = row.deviceType
+  formData.location = row.location
+  formData.installDate = row.installDate
+  formData.status = row.status
+  dialogVisible.value = true
+}
+
+const handleSubmit = () => {
+  formRef.value.validate((valid) => {
+    if (valid) {
+      if (isEdit.value && editingRow.value) {
+        Object.assign(editingRow.value, { ...formData })
+        ElMessage.success('设备信息更新成功')
+      } else {
+        const newDevice = {
+          deviceId: 'DEV' + String(tableData.value.length + 1).padStart(3, '0'),
+          lastMaintenance: '-',
+          ...formData
+        }
+        tableData.value.push(newDevice)
+        pagination.total = tableData.value.length
+        ElMessage.success('新设备添加成功')
+      }
+      dialogVisible.value = false
+    }
+  })
 }
 
 const handleStatusChange = (row) => {

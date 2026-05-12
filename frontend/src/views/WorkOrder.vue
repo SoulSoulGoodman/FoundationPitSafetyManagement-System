@@ -96,6 +96,14 @@
             >
               验收
             </el-button>
+            <el-button
+              v-if="scope.row.status === 'pending' || scope.row.status === 'assigned'"
+              type="danger"
+              size="small"
+              @click="handleCancel(scope.row)"
+            >
+              取消
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -112,20 +120,91 @@
         />
       </div>
     </div>
+
+    <!-- 工单详情弹窗 -->
+    <el-dialog v-model="detailVisible" title="工单详情" width="500px">
+      <el-descriptions v-if="currentOrder" :column="2" border>
+        <el-descriptions-item label="工单编号">{{ currentOrder.workOrderId }}</el-descriptions-item>
+        <el-descriptions-item label="设备名称">{{ currentOrder.deviceName }}</el-descriptions-item>
+        <el-descriptions-item label="故障类型">{{ currentOrder.faultType }}</el-descriptions-item>
+        <el-descriptions-item label="优先级">
+          <el-tag :type="getPriorityType(currentOrder.priority)" size="small">{{ getPriorityText(currentOrder.priority) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="报修人">{{ currentOrder.reporter }}</el-descriptions-item>
+        <el-descriptions-item label="报修时间">{{ currentOrder.reportTime }}</el-descriptions-item>
+        <el-descriptions-item label="维修人员">{{ currentOrder.assignee || '未分配' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(currentOrder.status)" size="small">{{ getStatusText(currentOrder.status) }}</el-tag>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
+
+    <!-- 创建工单弹窗 -->
+    <el-dialog v-model="createVisible" title="创建工单" width="500px" :close-on-click-modal="false">
+      <el-form :model="createForm" :rules="createRules" ref="createFormRef" label-width="100px">
+        <el-form-item label="设备名称" prop="deviceName">
+          <el-input v-model="createForm.deviceName" placeholder="请输入设备名称" />
+        </el-form-item>
+        <el-form-item label="故障类型" prop="faultType">
+          <el-select v-model="createForm.faultType" placeholder="请选择故障类型" style="width: 100%">
+            <el-option label="数据异常" value="数据异常" />
+            <el-option label="设备离线" value="设备离线" />
+            <el-option label="需要校准" value="需要校准" />
+            <el-option label="电源故障" value="电源故障" />
+            <el-option label="传感器异常" value="传感器异常" />
+            <el-option label="机械损坏" value="机械损坏" />
+            <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="优先级" prop="priority">
+          <el-select v-model="createForm.priority" placeholder="请选择优先级" style="width: 100%">
+            <el-option label="紧急" value="urgent" />
+            <el-option label="高" value="high" />
+            <el-option label="中" value="medium" />
+            <el-option label="低" value="low" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="报修人" prop="reporter">
+          <el-input v-model="createForm.reporter" placeholder="请输入报修人" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateSubmit">确定创建</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 
 const loading = ref(false)
+const detailVisible = ref(false)
+const createVisible = ref(false)
+const currentOrder = ref(null)
+const createFormRef = ref()
 
 const searchForm = reactive({
   status: '',
   priority: ''
 })
+
+const createForm = reactive({
+  deviceName: '',
+  faultType: '',
+  priority: 'medium',
+  reporter: ''
+})
+
+const createRules = {
+  deviceName: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
+  faultType: [{ required: true, message: '请选择故障类型', trigger: 'change' }],
+  priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
+  reporter: [{ required: true, message: '请输入报修人', trigger: 'blur' }]
+}
 
 const pagination = reactive({
   currentPage: 1,
@@ -263,22 +342,90 @@ const handleReset = () => {
 }
 
 const handleCreateWorkOrder = () => {
-  ElMessage.info('创建工单功能待开发')
+  createForm.deviceName = ''
+  createForm.faultType = ''
+  createForm.priority = 'medium'
+  createForm.reporter = ''
+  createVisible.value = true
+}
+
+const handleCreateSubmit = () => {
+  createFormRef.value.validate((valid) => {
+    if (valid) {
+      const newOrder = {
+        workOrderId: 'WO' + String(tableData.value.length + 1).padStart(3, '0'),
+        reportTime: new Date().toLocaleString('zh-CN', { hour12: false }),
+        status: 'pending',
+        assignee: '',
+        ...createForm
+      }
+      tableData.value.unshift(newOrder)
+      pagination.total = tableData.value.length
+      createVisible.value = false
+      ElMessage.success('工单创建成功，等待派单')
+    }
+  })
 }
 
 const handleView = (row) => {
-  ElMessage.info(`查看工单: ${row.workOrderId}`)
+  currentOrder.value = row
+  detailVisible.value = true
 }
 
 const handleAssign = (row) => {
-  ElMessage.success(`工单 ${row.workOrderId} 已派单`)
-  row.status = 'assigned'
-  row.assignee = '待分配'
+  ElMessageBox.confirm(
+    `确定要派发工单 ${row.workOrderId} 吗？派单后维修人员将收到通知。`,
+    '派单确认',
+    {
+      confirmButtonText: '确定派单',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    row.status = 'assigned'
+    row.assignee = '待分配'
+    ElMessage.success(`工单 ${row.workOrderId} 已成功派单`)
+  }).catch(() => {
+    ElMessage.info('已取消派单')
+  })
 }
 
 const handleAccept = (row) => {
-  ElMessage.success(`工单 ${row.workOrderId} 已验收`)
-  row.status = 'accepted'
+  ElMessageBox.confirm(
+    `确定验收工单 ${row.workOrderId} 吗？验收后工单将归档为已完成。`,
+    '验收确认',
+    {
+      confirmButtonText: '确定验收',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    row.status = 'accepted'
+    ElMessage.success(`工单 ${row.workOrderId} 已验收完成`)
+  }).catch(() => {
+    ElMessage.info('已取消验收')
+  })
+}
+
+const handleCancel = (row) => {
+  ElMessageBox.confirm(
+    `确定要取消工单 ${row.workOrderId} 吗？取消后不可恢复。`,
+    '取消确认',
+    {
+      confirmButtonText: '确定取消',
+      cancelButtonText: '返回',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = tableData.value.findIndex(item => item.workOrderId === row.workOrderId)
+    if (index > -1) {
+      tableData.value.splice(index, 1)
+      pagination.total = tableData.value.length
+      ElMessage.success(`工单 ${row.workOrderId} 已取消`)
+    }
+  }).catch(() => {
+    ElMessage.info('已取消操作')
+  })
 }
 
 const handleSizeChange = (val) => {

@@ -44,6 +44,10 @@
             <el-icon><Tickets /></el-icon>
             <span>工单调度</span>
           </el-menu-item>
+          <el-menu-item index="/ai-chat">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>AI助手</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -58,7 +62,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { House, Monitor, Tickets } from '@element-plus/icons-vue'
+import { House, Monitor, Tickets, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()

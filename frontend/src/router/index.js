@@ -34,6 +34,12 @@ const routes = [
         name: 'WorkOrder',
         component: WorkOrder,
         meta: { title: '工单调度', requiresAuth: true }
+      },
+      {
+        path: 'ai-chat',
+        name: 'AiChat',
+        component: () => import('../views/AiChat.vue'),
+        meta: { title: 'AI助手', requiresAuth: true }
       }
     ]
   }
