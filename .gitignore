@@ -26,3 +26,9 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Generated SQL import files (regenerate with: python3 sql/import_data.py)
+sql/import_steel_temp.sql
+sql/import_total_station.sql
+sql/import_axial_force.sql
+sql/import_adjust.sql
