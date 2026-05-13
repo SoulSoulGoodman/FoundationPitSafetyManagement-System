@@ -13,7 +13,7 @@
                 <el-icon><Monitor /></el-icon>
               </div>
               <div class="stats-info">
-                <h3>156</h3>
+                <h3>{{ stats.total || 0 }}</h3>
                 <p>设备总数</p>
               </div>
             </div>
@@ -26,7 +26,7 @@
                 <el-icon><CircleCheck /></el-icon>
               </div>
               <div class="stats-info">
-                <h3>142</h3>
+                <h3>{{ stats.normal || 0 }}</h3>
                 <p>正常运行</p>
               </div>
             </div>
@@ -39,7 +39,7 @@
                 <el-icon><Warning /></el-icon>
               </div>
               <div class="stats-info">
-                <h3>8</h3>
+                <h3>{{ stats.warning || 0 }}</h3>
                 <p>需要维护</p>
               </div>
             </div>
@@ -52,7 +52,7 @@
                 <el-icon><CircleClose /></el-icon>
               </div>
               <div class="stats-info">
-                <h3>6</h3>
+                <h3>{{ stats.error || 0 }}</h3>
                 <p>设备故障</p>
               </div>
             </div>
@@ -70,9 +70,7 @@
                 <span>设备状态分布</span>
               </div>
             </template>
-            <div class="chart-placeholder">
-              <el-empty description="图表区域" />
-            </div>
+            <div ref="pieChartRef" style="height: 300px;"></div>
           </el-card>
         </el-col>
         <el-col :span="12">
@@ -82,9 +80,7 @@
                 <span>近7天告警趋势</span>
               </div>
             </template>
-            <div class="chart-placeholder">
-              <el-empty description="图表区域" />
-            </div>
+            <div ref="lineChartRef" style="height: 300px;"></div>
           </el-card>
         </el-col>
       </el-row>
@@ -97,16 +93,18 @@
             <template #header>
               <div class="card-header">
                 <span>最近告警</span>
-                <el-button type="text">查看全部</el-button>
               </div>
             </template>
             <div class="alert-list">
+              <el-empty v-if="!recentAlerts.length" description="暂无告警" />
               <div class="alert-item" v-for="alert in recentAlerts" :key="alert.id">
                 <div class="alert-info">
-                  <span class="alert-title">{{ alert.title }}</span>
-                  <span class="alert-time">{{ alert.time }}</span>
+                  <span class="alert-title">{{ alert.deviceName }}</span>
+                  <span class="alert-time">{{ alert.faultDesc }}</span>
                 </div>
-                <el-tag :type="alert.type" size="small">{{ alert.level }}</el-tag>
+                <el-tag :type="getAlertType(alert.status)" size="small">
+                  {{ getStatusText(alert.status) }}
+                </el-tag>
               </div>
             </div>
           </el-card>
@@ -116,16 +114,18 @@
             <template #header>
               <div class="card-header">
                 <span>待处理工单</span>
-                <el-button type="text">查看全部</el-button>
               </div>
             </template>
             <div class="workorder-list">
-              <div class="workorder-item" v-for="order in recentWorkOrders" :key="order.id">
+              <el-empty v-if="!pendingOrders.length" description="暂无待处理工单" />
+              <div class="workorder-item" v-for="order in pendingOrders" :key="order.id">
                 <div class="workorder-info">
-                  <span class="workorder-title">{{ order.title }}</span>
-                  <span class="workorder-time">{{ order.time }}</span>
+                  <span class="workorder-title">{{ order.orderNo }}</span>
+                  <span class="workorder-time">{{ order.faultDesc }}</span>
                 </div>
-                <el-tag :type="order.priority" size="small">{{ order.priorityText }}</el-tag>
+                <el-tag :type="getOrderTagType(order.status)" size="small">
+                  {{ getOrderStatusText(order.status) }}
+                </el-tag>
               </div>
             </div>
           </el-card>
@@ -136,19 +136,114 @@
 </template>
 
 <script setup>
+import { ref, reactive, onMounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
 import { Monitor, CircleCheck, Warning, CircleClose } from '@element-plus/icons-vue'
+import { getStats, getAlertTrend, getRecentAlerts, getPendingOrders } from '@/api/dashboard'
 
-const recentAlerts = [
-  { id: 1, title: '测斜仪-01号数据异常', time: '2小时前', level: '高', type: 'danger' },
-  { id: 2, title: '水位计-03号离线', time: '3小时前', level: '中', type: 'warning' },
-  { id: 3, title: '土压力计-02号需要校准', time: '5小时前', level: '低', type: 'info' }
-]
+const pieChartRef = ref(null)
+const lineChartRef = ref(null)
 
-const recentWorkOrders = [
-  { id: 1, title: '测斜仪-01号检修', time: '1小时前', priority: 'danger', priorityText: '紧急' },
-  { id: 2, title: '水位计-03号故障排查', time: '2小时前', priority: 'warning', priorityText: '一般' },
-  { id: 3, title: '土压力计-02号定期维护', time: '4小时前', priority: 'info', priorityText: '低优先级' }
-]
+const stats = reactive({
+  total: 0,
+  normal: 0,
+  warning: 0,
+  error: 0
+})
+
+const recentAlerts = ref([])
+const pendingOrders = ref([])
+
+const getAlertType = (status) => {
+  const map = { 1: 'success', 2: 'warning', 3: 'danger', 4: 'info' }
+  return map[status] || 'info'
+}
+
+const getStatusText = (status) => {
+  const map = { 1: '正常', 2: '异常预警', 3: '故障待修', 4: '已报废' }
+  return map[status] || '未知'
+}
+
+const getOrderTagType = (status) => {
+  const map = { 0: 'info', 1: 'primary', 2: 'warning', 3: 'success', 4: 'success' }
+  return map[status] || 'info'
+}
+
+const getOrderStatusText = (status) => {
+  const map = { 0: '待派单', 1: '待接单', 2: '维修中', 3: '待验收', 4: '已完成' }
+  return map[status] || '未知'
+}
+
+const initPieChart = (data) => {
+  if (!pieChartRef.value) return
+  const chart = echarts.init(pieChartRef.value)
+  const chartData = [
+    { value: data.normal || 0, name: '正常运行' },
+    { value: data.warning || 0, name: '需要维护' },
+    { value: data.error || 0, name: '设备故障' },
+    { value: data.scrap || 0, name: '已报废' }
+  ]
+  chart.setOption({
+    tooltip: { trigger: 'item' },
+    legend: { bottom: '0%' },
+    color: ['#67C23A', '#E6A23C', '#F56C6C', '#909399'],
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      label: { show: false },
+      data: chartData
+    }]
+  })
+}
+
+const initLineChart = (data) => {
+  if (!lineChartRef.value) return
+  const chart = echarts.init(lineChartRef.value)
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      type: 'category',
+      data: data.dates || [],
+      boundaryGap: false
+    },
+    yAxis: { type: 'value' },
+    series: [{
+      data: data.counts || [],
+      type: 'line',
+      smooth: true,
+      areaStyle: { opacity: 0.3 },
+      itemStyle: { color: '#409EFF' }
+    }]
+  })
+}
+
+const loadData = async () => {
+  try {
+    const statsData = await getStats()
+    stats.total = statsData.total || 0
+    stats.normal = statsData.normal || 0
+    stats.warning = statsData.warning || 0
+    stats.error = statsData.error || 0
+    stats.scrap = statsData.scrap || 0
+
+    await nextTick()
+    initPieChart(statsData)
+
+    const trendData = await getAlertTrend()
+    await nextTick()
+    initLineChart(trendData)
+
+    recentAlerts.value = await getRecentAlerts()
+    pendingOrders.value = await getPendingOrders()
+  } catch (error) {
+    console.error('加载Dashboard数据失败:', error)
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>
@@ -230,13 +325,6 @@ const recentWorkOrders = [
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.chart-placeholder {
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .alert-list, .workorder-list {

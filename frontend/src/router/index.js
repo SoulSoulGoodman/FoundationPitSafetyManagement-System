@@ -4,6 +4,7 @@ import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
 import DeviceList from '../views/DeviceList.vue'
 import WorkOrder from '../views/WorkOrder.vue'
+import MonitorData from '../views/MonitorData.vue'
 
 const routes = [
   {
@@ -40,6 +41,12 @@ const routes = [
         name: 'AiChat',
         component: () => import('../views/AiChat.vue'),
         meta: { title: 'AI助手', requiresAuth: true }
+      },
+      {
+        path: 'monitor',
+        name: 'MonitorData',
+        component: MonitorData,
+        meta: { title: '监测数据', requiresAuth: true }
       }
     ]
   }

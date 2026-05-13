@@ -48,6 +48,10 @@
             <el-icon><ChatDotRound /></el-icon>
             <span>AI助手</span>
           </el-menu-item>
+          <el-menu-item index="/monitor">
+            <el-icon><TrendCharts /></el-icon>
+            <span>监测数据</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -62,7 +66,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { House, Monitor, Tickets, ChatDotRound } from '@element-plus/icons-vue'
+import { House, Monitor, Tickets, ChatDotRound, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
