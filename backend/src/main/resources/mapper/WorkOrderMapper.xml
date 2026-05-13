@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.edu.cdu.pitsafety.system.mapper.WorkOrderMapper">
+
+    <resultMap id="BaseResultMap" type="cn.edu.cdu.pitsafety.system.entity.WorkOrder">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="device_id" property="deviceId"/>
+        <result column="creator_id" property="creatorId"/>
+        <result column="repairer_id" property="repairerId"/>
+        <result column="fault_desc" property="faultDesc"/>
+        <result column="repair_log" property="repairLog"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 分页查询工单列表 -->
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM work_order
+        <where>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="deviceId != null">AND device_id = #{deviceId}</if>
+            <if test="repairerId != null">AND repairer_id = #{repairerId}</if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 查询工单总数 -->
+    <select id="selectCount" resultType="int">
+        SELECT COUNT(*) FROM work_order
+        <where>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="deviceId != null">AND device_id = #{deviceId}</if>
+            <if test="repairerId != null">AND repairer_id = #{repairerId}</if>
+        </where>
+    </select>
+
+    <!-- 根据ID查询工单详情 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM work_order WHERE id = #{id}
+    </select>
+
+    <!-- 查询当天最大工单序号 -->
+    <select id="selectMaxOrderNoByDate" resultType="string">
+        SELECT MAX(order_no) FROM work_order WHERE order_no LIKE CONCAT(#{datePrefix}, '%')
+    </select>
+
+    <!-- 创建工单 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO work_order (order_no, device_id, creator_id, fault_desc, status)
+        VALUES (#{orderNo}, #{deviceId}, #{creatorId}, #{faultDesc}, 0)
+    </insert>
+
+    <!-- 指派维修工 (0 → 1) -->
+    <update id="assignRepairer">
+        UPDATE work_order
+        SET repairer_id = #{repairerId}, status = 1, update_time = NOW()
+        WHERE id = #{id} AND status = 0
+    </update>
+
+    <!-- 开始维修/到场签到 (1 → 2) -->
+    <update id="startRepair">
+        UPDATE work_order
+        SET status = 2, update_time = NOW()
+        WHERE id = #{id} AND status = 1
+    </update>
+
+    <!-- 完成维修填日志 (2 → 3) -->
+    <update id="completeRepair">
+        UPDATE work_order
+        SET repair_log = #{repairLog}, status = 3, update_time = NOW()
+        WHERE id = #{id} AND status = 2
+    </update>
+
+    <!-- 验收通过 (3 → 4) -->
+    <update id="acceptWorkOrder">
+        UPDATE work_order
+        SET status = 4, update_time = NOW()
+        WHERE id = #{id} AND status = 3
+    </update>
+
+    <!-- 取消工单 (仅 status 0 或 1 可取消) -->
+    <update id="cancelWorkOrder">
+        UPDATE work_order
+        SET status = -1, update_time = NOW()
+        WHERE id = #{id} AND status IN (0, 1)
+    </update>
+
+</mapper>

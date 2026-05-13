@@ -15,8 +15,34 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
+    <!-- 分页查询设备列表（支持筛选） -->
     <select id="selectList" resultMap="BaseResultMap">
-        SELECT * FROM device_info ORDER BY id DESC
+        SELECT * FROM device_info
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (device_code LIKE CONCAT('%', #{keyword}, '%')
+                OR device_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 查询总数 -->
+    <select id="selectCount" resultType="int">
+        SELECT COUNT(*) FROM device_info
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (device_code LIKE CONCAT('%', #{keyword}, '%')
+                OR device_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -27,5 +53,23 @@
     <update id="updateStatus">
         UPDATE device_info SET status = #{status} WHERE id = #{id}
     </update>
+
+    <!-- 编辑设备完整信息 -->
+    <update id="updateById">
+        UPDATE device_info
+        SET device_code = #{deviceCode},
+            device_name = #{deviceName},
+            device_type = #{deviceType},
+            owner_id = #{ownerId},
+            ip_grade = #{ipGrade},
+            maintenance_cycle = #{maintenanceCycle},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除设备 -->
+    <delete id="deleteById">
+        DELETE FROM device_info WHERE id = #{id}
+    </delete>
 
 </mapper>
