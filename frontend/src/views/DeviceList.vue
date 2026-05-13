@@ -11,18 +11,14 @@
     <div class="filter-bar">
       <el-row :gutter="20">
         <el-col :span="6">
-          <el-input
-            v-model="searchForm.deviceName"
-            placeholder="设备名称"
-            clearable
-          />
+          <el-input v-model="searchForm.keyword" placeholder="设备名称/编码" clearable />
         </el-col>
         <el-col :span="6">
           <el-select v-model="searchForm.status" placeholder="设备状态" clearable>
-            <el-option label="正常运行" value="normal" />
-            <el-option label="故障" value="fault" />
-            <el-option label="维护中" value="maintenance" />
-            <el-option label="已报废" value="scrapped" />
+            <el-option label="正常" :value="1" />
+            <el-option label="异常预警" :value="2" />
+            <el-option label="故障待修" :value="3" />
+            <el-option label="已报废" :value="4" />
           </el-select>
         </el-col>
         <el-col :span="6">
@@ -36,97 +32,56 @@
     </div>
 
     <div class="table-container">
-      <el-table
-        :data="tableData"
-        border
-        stripe
-        style="width: 100%"
-        v-loading="loading"
-      >
-        <el-table-column prop="deviceId" label="设备编号" width="120" />
+      <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
+        <el-table-column prop="deviceCode" label="设备编码" width="120" />
         <el-table-column prop="deviceName" label="设备名称" width="150" />
-        <el-table-column prop="deviceType" label="设备类型" width="120" />
-        <el-table-column prop="location" label="安装位置" width="180" />
-        <el-table-column prop="installDate" label="安装日期" width="120" />
+        <el-table-column prop="deviceType" label="设备类型" width="140" />
+        <el-table-column prop="ipGrade" label="防护等级" width="100" />
+        <el-table-column prop="maintenanceCycle" label="维保周期(天)" width="120" />
         <el-table-column prop="status" label="设备状态" width="100">
           <template #default="scope">
-            <el-tag
-              :type="getStatusType(scope.row.status)"
-              size="small"
-            >
+            <el-tag :type="getStatusType(scope.row.status)" size="small">
               {{ getStatusText(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lastMaintenance" label="上次维护" width="120" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="createTime" label="入库时间" width="160" />
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="scope">
-            <el-button
-              type="primary"
-              size="small"
-              @click="handleEdit(scope.row)"
-            >
-              编辑
+            <el-button type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+            <el-button type="warning" size="small" @click="handleStatusChange(scope.row)">
+              {{ scope.row.status === 1 ? '设为故障' : '设为正常' }}
             </el-button>
-            <el-button
-              :type="scope.row.status === 'normal' ? 'warning' : 'success'"
-              size="small"
-              @click="handleStatusChange(scope.row)"
-            >
-              {{ scope.row.status === 'normal' ? '设为故障' : '设为正常' }}
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              @click="handleDelete(scope.row)"
-            >
-              删除
-            </el-button>
+            <el-button type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
     </div>
 
-    <!-- 新增/编辑设备对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="500px"
-      :close-on-click-modal="false"
-    >
-      <el-form :model="formData" :rules="formRules" ref="formRef" label-width="100px">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" :close-on-click-modal="false">
+      <el-form :model="formData" :rules="formRules" ref="formRef" label-width="110px">
+        <el-form-item label="设备编码" prop="deviceCode">
+          <el-input v-model="formData.deviceCode" placeholder="请输入设备编码" />
+        </el-form-item>
         <el-form-item label="设备名称" prop="deviceName">
           <el-input v-model="formData.deviceName" placeholder="请输入设备名称" />
         </el-form-item>
         <el-form-item label="设备类型" prop="deviceType">
           <el-select v-model="formData.deviceType" placeholder="请选择设备类型" style="width: 100%">
+            <el-option label="全站仪" value="全站仪" />
+            <el-option label="伺服轴力计" value="伺服轴力计" />
+            <el-option label="温度传感器" value="温度传感器" />
             <el-option label="测斜仪" value="测斜仪" />
             <el-option label="水位计" value="水位计" />
             <el-option label="土压力计" value="土压力计" />
-            <el-option label="钢筋应力计" value="钢筋应力计" />
-            <el-option label="全站仪" value="全站仪" />
-            <el-option label="伺服轴力计" value="伺服轴力计" />
+            <el-option label="传感器" value="传感器" />
           </el-select>
         </el-form-item>
-        <el-form-item label="安装位置" prop="location">
-          <el-input v-model="formData.location" placeholder="请输入安装位置" />
+        <el-form-item label="防护等级" prop="ipGrade">
+          <el-input v-model="formData.ipGrade" placeholder="如 IP68" />
         </el-form-item>
-        <el-form-item label="安装日期" prop="installDate">
-          <el-date-picker
-            v-model="formData.installDate"
-            type="date"
-            placeholder="请选择日期"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="设备状态" prop="status">
-          <el-select v-model="formData.status" placeholder="请选择状态" style="width: 100%">
-            <el-option label="正常运行" value="normal" />
-            <el-option label="故障" value="fault" />
-            <el-option label="维护中" value="maintenance" />
-            <el-option label="已报废" value="scrapped" />
-          </el-select>
+        <el-form-item label="维保周期(天)" prop="maintenanceCycle">
+          <el-input-number v-model="formData.maintenanceCycle" :min="1" :max="365" style="width: 100%" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -141,6 +96,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
+import { getDeviceList, addDevice, updateDevice, deleteDevice, updateDeviceStatus } from '@/api/device'
 
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -149,131 +105,49 @@ const isEdit = ref(false)
 const editingRow = ref(null)
 
 const formData = reactive({
+  deviceCode: '',
   deviceName: '',
   deviceType: '',
-  location: '',
-  installDate: '',
-  status: 'normal'
+  ipGrade: '',
+  maintenanceCycle: 30
 })
 
 const formRules = {
+  deviceCode: [{ required: true, message: '请输入设备编码', trigger: 'blur' }],
   deviceName: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
-  deviceType: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
-  location: [{ required: true, message: '请输入安装位置', trigger: 'blur' }],
-  installDate: [{ required: true, message: '请选择安装日期', trigger: 'change' }]
+  deviceType: [{ required: true, message: '请选择设备类型', trigger: 'change' }]
 }
 
 const searchForm = reactive({
-  deviceName: '',
-  status: ''
+  keyword: '',
+  status: null
 })
-
-const pagination = reactive({
-  currentPage: 1,
-  pageSize: 10,
-  total: 0
-})
-
-// 假数据
-const mockData = [
-  {
-    deviceId: 'DEV001',
-    deviceName: '测斜仪-01号',
-    deviceType: '测斜仪',
-    location: 'A区-北侧基坑',
-    installDate: '2024-01-15',
-    status: 'normal',
-    lastMaintenance: '2024-03-10'
-  },
-  {
-    deviceId: 'DEV002',
-    deviceName: '水位计-02号',
-    deviceType: '水位计',
-    location: 'B区-南侧基坑',
-    installDate: '2024-01-20',
-    status: 'fault',
-    lastMaintenance: '2024-02-28'
-  },
-  {
-    deviceId: 'DEV003',
-    deviceName: '土压力计-01号',
-    deviceType: '土压力计',
-    location: 'A区-东侧基坑',
-    installDate: '2024-02-01',
-    status: 'maintenance',
-    lastMaintenance: '2024-04-05'
-  },
-  {
-    deviceId: 'DEV004',
-    deviceName: '测斜仪-03号',
-    deviceType: '测斜仪',
-    location: 'C区-西侧基坑',
-    installDate: '2024-02-10',
-    status: 'normal',
-    lastMaintenance: '2024-03-15'
-  },
-  {
-    deviceId: 'DEV005',
-    deviceName: '水位计-05号',
-    deviceType: '水位计',
-    location: 'B区-中央基坑',
-    installDate: '2024-02-15',
-    status: 'scrapped',
-    lastMaintenance: '2024-01-20'
-  },
-  {
-    deviceId: 'DEV006',
-    deviceName: '土压力计-02号',
-    deviceType: '土压力计',
-    location: 'C区-北侧基坑',
-    installDate: '2024-03-01',
-    status: 'normal',
-    lastMaintenance: '2024-04-01'
-  }
-]
 
 const tableData = ref([])
 
 const getStatusType = (status) => {
-  const statusMap = {
-    normal: 'success',
-    fault: 'danger',
-    maintenance: 'warning',
-    scrapped: 'info'
-  }
-  return statusMap[status] || 'info'
+  const map = { 1: 'success', 2: 'warning', 3: 'danger', 4: 'info' }
+  return map[status] || 'info'
 }
 
 const getStatusText = (status) => {
-  const statusMap = {
-    normal: '正常运行',
-    fault: '故障',
-    maintenance: '维护中',
-    scrapped: '已报废'
-  }
-  return statusMap[status] || '未知'
+  const map = { 1: '正常', 2: '异常预警', 3: '故障待修', 4: '已报废' }
+  return map[status] || '未知'
 }
 
-const loadData = () => {
+const loadData = async () => {
   loading.value = true
-  setTimeout(() => {
-    // 根据筛选条件过滤数据
-    let filteredData = [...mockData]
-    
-    if (searchForm.deviceName) {
-      filteredData = filteredData.filter(item => 
-        item.deviceName.toLowerCase().includes(searchForm.deviceName.toLowerCase())
-      )
-    }
-    
-    if (searchForm.status) {
-      filteredData = filteredData.filter(item => item.status === searchForm.status)
-    }
-    
-    tableData.value = filteredData
-    pagination.total = filteredData.length
+  try {
+    const data = await getDeviceList({
+      keyword: searchForm.keyword || undefined,
+      status: searchForm.status || undefined
+    })
+    tableData.value = data || []
+  } catch (error) {
+    console.error('加载设备列表失败:', error)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const handleSearch = () => {
@@ -282,8 +156,8 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  searchForm.deviceName = ''
-  searchForm.status = ''
+  searchForm.keyword = ''
+  searchForm.status = null
   loadData()
 }
 
@@ -292,93 +166,78 @@ const dialogTitle = computed(() => isEdit.value ? '编辑设备' : '新增设备
 const handleAdd = () => {
   isEdit.value = false
   editingRow.value = null
+  formData.deviceCode = ''
   formData.deviceName = ''
   formData.deviceType = ''
-  formData.location = ''
-  formData.installDate = ''
-  formData.status = 'normal'
+  formData.ipGrade = ''
+  formData.maintenanceCycle = 30
   dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
   isEdit.value = true
   editingRow.value = row
+  formData.deviceCode = row.deviceCode
   formData.deviceName = row.deviceName
   formData.deviceType = row.deviceType
-  formData.location = row.location
-  formData.installDate = row.installDate
-  formData.status = row.status
+  formData.ipGrade = row.ipGrade || ''
+  formData.maintenanceCycle = row.maintenanceCycle || 30
   dialogVisible.value = true
 }
 
 const handleSubmit = () => {
-  formRef.value.validate((valid) => {
-    if (valid) {
+  formRef.value.validate(async (valid) => {
+    if (!valid) return
+    try {
       if (isEdit.value && editingRow.value) {
-        Object.assign(editingRow.value, { ...formData })
+        await updateDevice({ id: editingRow.value.id, ...formData })
         ElMessage.success('设备信息更新成功')
       } else {
-        const newDevice = {
-          deviceId: 'DEV' + String(tableData.value.length + 1).padStart(3, '0'),
-          lastMaintenance: '-',
-          ...formData
-        }
-        tableData.value.push(newDevice)
-        pagination.total = tableData.value.length
+        await addDevice({ ...formData })
         ElMessage.success('新设备添加成功')
       }
       dialogVisible.value = false
+      loadData()
+    } catch (error) {
+      ElMessage.error('操作失败')
     }
   })
 }
 
-const handleStatusChange = (row) => {
-  const newStatus = row.status === 'normal' ? '故障' : '正常'
-  ElMessageBox.confirm(
-    `确定要将设备 ${row.deviceName} 状态设为 ${newStatus} 吗？`,
-    '状态变更确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    row.status = row.status === 'normal' ? 'fault' : 'normal'
+const handleStatusChange = async (row) => {
+  const newStatus = row.status === 1 ? 3 : 1
+  const statusText = row.status === 1 ? '故障待修' : '正常'
+  try {
+    await ElMessageBox.confirm(
+      `确定将设备 ${row.deviceName} 状态设为 ${statusText} 吗？`,
+      '状态变更确认',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    await updateDeviceStatus(row.id, newStatus)
+    row.status = newStatus
     ElMessage.success('状态修改成功')
-  }).catch(() => {
-    ElMessage.info('已取消操作')
-  })
-}
-
-const handleDelete = (row) => {
-  ElMessageBox.confirm(
-    `确定要删除设备 ${row.deviceName} 吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+  } catch (_) {
+    if (_.toString() !== 'cancel') {
+      ElMessage.error('状态修改失败')
     }
-  ).then(() => {
-    const index = tableData.value.findIndex(item => item.deviceId === row.deviceId)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      pagination.total = tableData.value.length
-      ElMessage.success('删除成功')
+  }
+}
+
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除设备 ${row.deviceName} 吗？`,
+      '删除确认',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    await deleteDevice(row.id)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (_) {
+    if (_.toString() !== 'cancel') {
+      ElMessage.error('删除失败')
     }
-  }).catch(() => {
-    ElMessage.info('已取消删除')
-  })
-}
-
-const handleSizeChange = (val) => {
-  pagination.pageSize = val
-  loadData()
-}
-
-const handleCurrentChange = (val) => {
-  pagination.currentPage = val
-  loadData()
+  }
 }
 
 onMounted(() => {
@@ -414,10 +273,5 @@ onMounted(() => {
 
 .table-container {
   margin-top: 20px;
-}
-
-.pagination {
-  margin-top: 20px;
-  text-align: right;
 }
 </style>
