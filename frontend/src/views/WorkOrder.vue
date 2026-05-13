@@ -32,7 +32,11 @@
     <div class="table-container">
       <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
         <el-table-column prop="orderNo" label="工单编号" width="140" />
-        <el-table-column prop="deviceCode" label="设备编码" width="120" />
+        <el-table-column label="设备编码" width="120">
+          <template #default="scope">
+            {{ scope.row.deviceCode || scope.row.deviceId || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="faultDesc" label="故障描述" min-width="180" show-overflow-tooltip />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="scope">
@@ -41,7 +45,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="repairerName" label="维修人员" width="100" />
+        <el-table-column label="维修人员" width="100">
+          <template #default="scope">
+            {{ scope.row.repairerName || scope.row.repairerId || '未分配' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" label="报修时间" width="160" />
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="scope">
@@ -71,12 +79,12 @@
     <el-dialog v-model="detailVisible" title="工单详情" width="500px">
       <el-descriptions v-if="currentOrder" :column="2" border>
         <el-descriptions-item label="工单编号">{{ currentOrder.orderNo }}</el-descriptions-item>
-        <el-descriptions-item label="设备编码">{{ currentOrder.deviceCode }}</el-descriptions-item>
+        <el-descriptions-item label="设备编码">{{ currentOrder.deviceCode || currentOrder.deviceId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="故障描述">{{ currentOrder.faultDesc }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(currentOrder.status)" size="small">{{ getStatusText(currentOrder.status) }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="维修人员">{{ currentOrder.repairerName || '未分配' }}</el-descriptions-item>
+        <el-descriptions-item label="维修人员">{{ currentOrder.repairerName || currentOrder.repairerId || '未分配' }}</el-descriptions-item>
         <el-descriptions-item label="报修时间">{{ currentOrder.createTime }}</el-descriptions-item>
         <el-descriptions-item label="维修日志" :span="2">{{ currentOrder.repairLog || '-' }}</el-descriptions-item>
       </el-descriptions>
@@ -135,7 +143,7 @@ const createFormRef = ref()
 const completeFormRef = ref()
 
 const searchForm = reactive({ status: null })
-const createForm = reactive({ deviceId: 1, faultDesc: '' })
+const createForm = reactive({ deviceId: 1, creatorId: null, faultDesc: '' })
 const completeForm = reactive({ repairLog: '' })
 
 const createRules = {
@@ -150,6 +158,17 @@ const pagination = reactive({
 })
 
 const tableData = ref([])
+
+const getCurrentUserId = () => {
+  const userRaw = localStorage.getItem('user')
+  if (!userRaw) return null
+  try {
+    const user = JSON.parse(userRaw)
+    return user?.id || user?.userInfo?.id || null
+  } catch {
+    return null
+  }
+}
 
 const getStatusType = (status) => {
   const map = { 0: 'info', 1: 'primary', 2: 'warning', 3: 'orange', 4: 'success' }
@@ -195,6 +214,7 @@ const handleReset = () => {
 
 const handleCreateWorkOrder = () => {
   createForm.deviceId = 1
+  createForm.creatorId = getCurrentUserId()
   createForm.faultDesc = ''
   createVisible.value = true
 }
@@ -203,7 +223,11 @@ const handleCreateSubmit = async () => {
   const valid = await createFormRef.value.validate().catch(() => false)
   if (!valid) return
   try {
-    await createWorkOrder({ ...createForm })
+    await createWorkOrder({
+      deviceId: createForm.deviceId,
+      creatorId: getCurrentUserId(),
+      faultDesc: createForm.faultDesc
+    })
     ElMessage.success('工单创建成功')
     createVisible.value = false
     loadData()
@@ -223,11 +247,16 @@ const handleView = async (row) => {
 }
 
 const handleAssign = async (row) => {
+  const repairerId = getCurrentUserId()
+  if (!repairerId) {
+    ElMessage.error('当前缺少维修人员ID，无法派单，请先使用真实账号登录')
+    return
+  }
   try {
     await ElMessageBox.confirm(`确定派发工单 ${row.orderNo} 吗？`,'派单确认',{
       confirmButtonText: '确定派单', cancelButtonText: '取消', type: 'warning'
     })
-    await assignWorkOrder(row.id)
+    await assignWorkOrder(row.id, repairerId)
     ElMessage.success('派单成功')
     loadData()
   } catch (_) {}

@@ -124,6 +124,9 @@ const searchForm = reactive({
 })
 
 const tableData = ref([])
+const pagination = reactive({
+  total: 0
+})
 
 const getStatusType = (status) => {
   const map = { 1: 'success', 2: 'warning', 3: 'danger', 4: 'info' }
@@ -142,7 +145,13 @@ const loadData = async () => {
       keyword: searchForm.keyword || undefined,
       status: searchForm.status || undefined
     })
-    tableData.value = data || []
+    if (data && Array.isArray(data.list)) {
+      tableData.value = data.list
+      pagination.total = data.total || 0
+    } else {
+      tableData.value = Array.isArray(data) ? data : []
+      pagination.total = tableData.value.length
+    }
   } catch (error) {
     console.error('加载设备列表失败:', error)
   } finally {

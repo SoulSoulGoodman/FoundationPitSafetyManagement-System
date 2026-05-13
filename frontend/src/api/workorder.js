@@ -13,7 +13,7 @@ export function createWorkOrder(data) {
 }
 
 export function assignWorkOrder(id, repairerId) {
-  return request.put(`/work-order/${id}/assign`, { repairerId })
+  return request.put(`/work-order/${id}/assign`, null, { params: { repairerId } })
 }
 
 export function startWorkOrder(id) {
@@ -21,7 +21,7 @@ export function startWorkOrder(id) {
 }
 
 export function completeWorkOrder(id, repairLog) {
-  return request.put(`/work-order/${id}/complete`, { repairLog })
+  return request.put(`/work-order/${id}/complete`, null, { params: { repairLog } })
 }
 
 export function acceptWorkOrder(id) {

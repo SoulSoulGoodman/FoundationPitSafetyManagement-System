@@ -9,7 +9,7 @@ export function addDevice(data) {
 }
 
 export function updateDevice(data) {
-  return request.put('/device', data)
+  return request.put(`/device/${data.id}`, data)
 }
 
 export function deleteDevice(id) {

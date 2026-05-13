@@ -56,6 +56,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { login } from '@/api/auth'
 
 const router = useRouter()
 const loginFormRef = ref()
@@ -76,19 +77,20 @@ const rules = {
 }
 
 const handleLogin = () => {
-  loginFormRef.value.validate((valid) => {
-    if (valid) {
-      // 模拟登录成功，保存token
-      localStorage.setItem('token', 'mock-token-' + Date.now())
-      localStorage.setItem('user', JSON.stringify({
-        username: loginForm.username,
-        role: 'admin'
-      }))
-      
+  loginFormRef.value.validate(async (valid) => {
+    if (!valid) {
+      ElMessage.error('请正确填写登录信息')
+      return
+    }
+
+    try {
+      const data = await login(loginForm.username, loginForm.password)
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.userInfo || {}))
       ElMessage.success('登录成功')
       router.push('/')
-    } else {
-      ElMessage.error('请正确填写登录信息')
+    } catch (error) {
+      ElMessage.error('登录失败，请检查用户名或密码')
     }
   })
 }
