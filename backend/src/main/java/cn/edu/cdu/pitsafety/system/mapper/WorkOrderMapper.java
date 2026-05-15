@@ -4,6 +4,7 @@ import cn.edu.cdu.pitsafety.system.entity.WorkOrder;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface WorkOrderMapper {
@@ -43,4 +44,10 @@ public interface WorkOrderMapper {
 
     // 取消工单 (仅 status 0 或 1 可取消)
     int cancelWorkOrder(@Param("id") Long id);
+
+    // 获取近7天每日告警数（大屏用）
+    List<Map<String, Object>> getAlertTrendLast7Days();
+
+    // 获取待处理工单（大屏用）
+    List<Map<String, Object>> getPendingWorkOrders();
 }

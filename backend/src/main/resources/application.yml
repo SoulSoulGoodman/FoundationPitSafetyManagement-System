@@ -24,6 +24,12 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+  params: count=countSql
+
 deepseek:
   api-key: ${DEEPSEEK_API_KEY:your-api-key-here}
   base-url: https://api.deepseek.com

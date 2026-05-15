@@ -4,6 +4,7 @@ import cn.edu.cdu.pitsafety.system.entity.DeviceInfo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface DeviceInfoMapper {
@@ -27,4 +28,10 @@ public interface DeviceInfoMapper {
 
     // 删除设备
     int deleteById(@Param("id") Long id);
+
+    // 获取设备状态统计（大屏用）
+    List<Map<String, Object>> getDeviceStatusStats();
+
+    // 获取最近的异常设备（大屏用）
+    List<Map<String, Object>> getRecentAbnormalDevices();
 }

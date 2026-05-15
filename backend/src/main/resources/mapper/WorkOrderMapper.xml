@@ -89,4 +89,18 @@
         WHERE id = #{id} AND status IN (0, 1)
     </update>
 
+    <!-- 获取近7天每日告警数（大屏用） -->
+    <select id="getAlertTrendLast7Days" resultType="java.util.Map">
+        SELECT DATE(create_time) as date, COUNT(*) as count
+        FROM work_order
+        WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY DATE(create_time)
+        ORDER BY date
+    </select>
+
+    <!-- 获取待处理工单（大屏用） -->
+    <select id="getPendingWorkOrders" resultType="java.util.Map">
+        SELECT * FROM work_order WHERE status &lt; 4 ORDER BY create_time DESC LIMIT 10
+    </select>
+
 </mapper>

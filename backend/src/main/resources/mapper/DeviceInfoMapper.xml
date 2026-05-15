@@ -72,4 +72,13 @@
         DELETE FROM device_info WHERE id = #{id}
     </delete>
 
+    <!-- 获取设备状态统计（大屏用） -->
+    <select id="getDeviceStatusStats" resultType="java.util.Map">
+        SELECT status, COUNT(*) as count FROM device_info GROUP BY status
+    </select>
+
+    <!-- 获取最近的异常设备（大屏用） -->
+    <select id="getRecentAbnormalDevices" resultType="java.util.Map">
+        SELECT * FROM device_info WHERE status != 1 ORDER BY create_time DESC LIMIT 10
+    </select>
 </mapper>

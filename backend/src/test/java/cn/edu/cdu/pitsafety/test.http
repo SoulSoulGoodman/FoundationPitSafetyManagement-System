@@ -112,3 +112,65 @@ Authorization: Bearer {{auth_token}}
 Content-Type: application/json
 
 ###
+### 10. 删除用户
+DELETE http://localhost:8080/api/auth/users/2
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+###
+
+### ============================================
+### 监测数据时序查询接口测试
+### ============================================
+
+### 11. 获取所有传感器编码列表
+GET http://localhost:8081/api/monitor/sensors
+Authorization: Bearer {{auth_token}}
+
+###
+
+### 12. 查询全站仪位移数据（FRHY-01）
+GET http://localhost:8081/api/monitor/total-station?sensorCode=FRHY-01&startTime=2025-01-01 00:00:00&endTime=2025-12-31 23:59:59&page=1&pageSize=10
+Authorization: Bearer {{auth_token}}
+
+###
+
+### 13. 查询伺服轴力数据（SP1）
+GET http://localhost:8081/api/monitor/axial-force?sensorCode=SP1&startTime=2025-01-01 00:00:00&endTime=2025-12-31 23:59:59&page=1&pageSize=10
+Authorization: Bearer {{auth_token}}
+
+###
+
+### 14. 查询钢支撑温度数据（6501945）
+GET http://localhost:8081/api/monitor/steel-temperature?sensorCode=6501945&startTime=2025-01-01 00:00:00&endTime=2025-12-31 23:59:59&page=1&pageSize=10
+Authorization: Bearer {{auth_token}}
+
+###
+
+### ============================================
+### 大屏统计接口测试
+### ============================================
+
+### 15. 设备状态统计
+GET http://localhost:8081/api/dashboard/stats
+Authorization: Bearer {{auth_token}}
+
+###
+
+### 16. 近7天每日告警数趋势
+GET http://localhost:8081/api/dashboard/alert-trend
+Authorization: Bearer {{auth_token}}
+
+###
+
+### 17. 最近10条异常设备
+GET http://localhost:8081/api/dashboard/recent-alerts
+Authorization: Bearer {{auth_token}}
+
+###
+
+### 18. 待处理工单列表
+GET http://localhost:8081/api/dashboard/pending-orders
+Authorization: Bearer {{auth_token}}
+
+###
