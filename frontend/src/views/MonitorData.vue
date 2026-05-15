@@ -52,8 +52,16 @@
         <el-table-column v-if="activeTab === 'totalStation'" prop="totalX" label="∑X(mm)" width="100" />
         <el-table-column v-if="activeTab === 'totalStation'" prop="totalY" label="∑Y(mm)" width="100" />
         <el-table-column v-if="activeTab === 'totalStation'" prop="totalH" label="∑H(mm)" width="100" />
-        <el-table-column v-if="activeTab === 'axialForce'" prop="wForce" label="轴力(kN)" width="120" />
-        <el-table-column v-if="activeTab === 'axialForce'" prop="fPosition" label="行程(mm)" width="120" />
+        <el-table-column v-if="activeTab === 'axialForce'" label="轴力(kN)" width="120">
+          <template #default="scope">
+            {{ safeGetField(scope.row, 'wForce') }}
+          </template>
+        </el-table-column>
+        <el-table-column v-if="activeTab === 'axialForce'" label="行程(mm)" width="120">
+          <template #default="scope">
+            {{ safeGetField(scope.row, 'fPosition') }}
+          </template>
+        </el-table-column>
         <el-table-column v-if="activeTab === 'steelTemperature'" prop="temperature" label="温度(℃)" width="120" />
         <el-table-column v-if="activeTab === 'steelTemperature'" prop="measureVal" label="原始测量值" width="120" />
         <el-table-column prop="temperature" label="温度(℃)" width="100" v-if="activeTab !== 'steelTemperature'" />
@@ -88,8 +96,11 @@ const loading = ref(false)
 const activeTab = ref('totalStation')
 const currentSensor = ref('')
 const timeRange = ref(null)
+const defaultStartTime = '2025-01-01 00:00:00'
+const defaultEndTime = '2026-12-31 23:59:59'
 
 const sensors = ref([])
+const allSensors = ref([])
 const tableData = ref([])
 
 const pagination = reactive({
@@ -116,6 +127,10 @@ const getYField = () => {
   return fieldMap[activeTab.value]
 }
 
+const safeGetField = (item, field) => {
+  return item[field] !== undefined ? item[field] : item[field.toLowerCase()]
+}
+
 const getYLabel = () => {
   const labelMap = {
     totalStation: '累计X位移 ∑X(mm)',
@@ -123,6 +138,20 @@ const getYLabel = () => {
     steelTemperature: '温度(℃)'
   }
   return labelMap[activeTab.value]
+}
+
+const filterSensorsByType = (sensorList, type) => {
+  if (!sensorList || !Array.isArray(sensorList)) return []
+  return sensorList.filter(s => {
+    if (type === 'totalStation') {
+      return s.startsWith('FRHY')
+    } else if (type === 'axialForce') {
+      return s.startsWith('SP') || s.startsWith('4P') || s.startsWith('HSD')
+    } else if (type === 'steelTemperature') {
+      return s.startsWith('650')
+    }
+    return true
+  })
 }
 
 const initChart = (data) => {
@@ -133,7 +162,7 @@ const initChart = (data) => {
 
   const yField = getYField()
   const times = data.map(item => item.collectTime).reverse()
-  const values = data.map(item => item[yField]).reverse()
+  const values = data.map(item => safeGetField(item, yField)).reverse()
 
   chartInstance.setOption({
     tooltip: { trigger: 'axis' },
@@ -169,12 +198,10 @@ const loadData = async () => {
   try {
     const params = {
       sensorCode: currentSensor.value,
+      startTime: (timeRange.value && timeRange.value.length === 2) ? timeRange.value[0] : defaultStartTime,
+      endTime: (timeRange.value && timeRange.value.length === 2) ? timeRange.value[1] : defaultEndTime,
       page: pagination.currentPage,
       pageSize: pagination.pageSize
-    }
-    if (timeRange.value && timeRange.value.length === 2) {
-      params.startTime = timeRange.value[0]
-      params.endTime = timeRange.value[1]
     }
     const apiMethod = getApiMethod()
     const data = await apiMethod(params)
@@ -202,7 +229,11 @@ const onTabChange = () => {
   currentSensor.value = ''
   tableData.value = []
   pagination.currentPage = 1
-  loadSensorList()
+  sensors.value = filterSensorsByType(allSensors.value, activeTab.value)
+  if (sensors.value.length > 0) {
+    currentSensor.value = sensors.value[0]
+    loadData()
+  }
 }
 
 const onTimeChange = () => {
@@ -213,7 +244,8 @@ const onTimeChange = () => {
 const loadSensorList = async () => {
   try {
     const data = await getSensors()
-    sensors.value = data || []
+    allSensors.value = data || []
+    sensors.value = filterSensorsByType(allSensors.value, activeTab.value)
     if (sensors.value.length > 0) {
       currentSensor.value = sensors.value[0]
       loadData()

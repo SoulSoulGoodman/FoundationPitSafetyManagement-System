@@ -148,7 +148,8 @@ const stats = reactive({
   total: 0,
   normal: 0,
   warning: 0,
-  error: 0
+  error: 0,
+  scrap: 0
 })
 
 const recentAlerts = ref([])
@@ -221,18 +222,35 @@ const initLineChart = (data) => {
 const loadData = async () => {
   try {
     const statsData = await getStats()
-    stats.total = statsData.total || 0
-    stats.normal = statsData.normal || 0
-    stats.warning = statsData.warning || 0
-    stats.error = statsData.error || 0
-    stats.scrap = statsData.scrap || 0
+    const transformedStats = { total: 0, normal: 0, warning: 0, error: 0, scrap: 0 }
+    if (Array.isArray(statsData)) {
+      statsData.forEach(item => {
+        const status = item.status
+        const count = item.count || 0
+        transformedStats.total += count
+        if (status === 1) transformedStats.normal = count
+        if (status === 2) transformedStats.warning = count
+        if (status === 3) transformedStats.error = count
+        if (status === 4) transformedStats.scrap = count
+      })
+    }
+    stats.total = transformedStats.total
+    stats.normal = transformedStats.normal
+    stats.warning = transformedStats.warning
+    stats.error = transformedStats.error
+    stats.scrap = transformedStats.scrap
 
     await nextTick()
-    initPieChart(statsData)
+    initPieChart(transformedStats)
 
     const trendData = await getAlertTrend()
+    const transformedTrend = { dates: [], counts: [] }
+    if (Array.isArray(trendData)) {
+      transformedTrend.dates = trendData.map(item => item.date)
+      transformedTrend.counts = trendData.map(item => item.count)
+    }
     await nextTick()
-    initLineChart(trendData)
+    initLineChart(transformedTrend)
 
     recentAlerts.value = await getRecentAlerts()
     pendingOrders.value = await getPendingOrders()
