@@ -10,6 +10,7 @@
           <span class="user-info">
             <el-avatar :size="32" icon="User" />
             <span>{{ user?.username || '管理员' }}</span>
+            <el-tag size="small" :type="roleTagType" style="margin-left:4px">{{ roleLabel }}</el-tag>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -36,7 +37,7 @@
             <el-icon><House /></el-icon>
             <span>首页大盘</span>
           </el-menu-item>
-          <el-menu-item index="/device">
+          <el-menu-item v-if="isAdmin" index="/device">
             <el-icon><Monitor /></el-icon>
             <span>设备管理</span>
           </el-menu-item>
@@ -64,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { House, Monitor, Tickets, ChatDotRound, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -78,6 +79,27 @@ onMounted(() => {
   if (userInfo) {
     user.value = JSON.parse(userInfo)
   }
+})
+
+const isAdmin = computed(() => {
+  const roles = user.value?.roles || user.value?.userInfo?.roles || []
+  return roles.includes('ROLE_ADMIN')
+})
+
+const roleLabel = computed(() => {
+  const roles = user.value?.roles || user.value?.userInfo?.roles || []
+  if (roles.includes('ROLE_ADMIN')) return '监控中心'
+  if (roles.includes('ROLE_REPAIRER')) return '维修工程师'
+  if (roles.includes('ROLE_BUYER')) return '施工方'
+  return '用户'
+})
+
+const roleTagType = computed(() => {
+  const roles = user.value?.roles || user.value?.userInfo?.roles || []
+  if (roles.includes('ROLE_ADMIN')) return 'danger'
+  if (roles.includes('ROLE_REPAIRER')) return 'warning'
+  if (roles.includes('ROLE_BUYER')) return 'success'
+  return 'info'
 })
 
 const handleLogout = () => {

@@ -8,6 +8,7 @@
             <el-radio-button value="chat">通用对话</el-radio-button>
             <el-radio-button value="maintenance">AI检修助手</el-radio-button>
             <el-radio-button value="health">健康监测分析</el-radio-button>
+            <el-radio-button value="predict">趋势预测分析</el-radio-button>
           </el-radio-group>
         </div>
       </template>
@@ -77,7 +78,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { Promotion } from '@element-plus/icons-vue'
-import { chatAi, maintenanceAssistant, healthMonitor } from '../api/ai'
+import { chatAi, maintenanceAssistant, healthMonitor, predictDevice } from '../api/ai'
 
 const mode = ref('chat')
 const inputText = ref('')
@@ -91,6 +92,8 @@ const emptyHint = computed(() => {
       return '我是基坑设备检修助手，请描述设备故障现象'
     case 'health':
       return '我是设备健康监测分析师，请提供设备监测数据'
+    case 'predict':
+      return '我是趋势预测分析师，请提供历史数据让我预测未来趋势'
     default:
       return '我是 DeepSeek AI 助手，你可以问我任何问题'
   }
@@ -102,6 +105,8 @@ const inputPlaceholder = computed(() => {
       return '请描述故障现象，例如：测斜仪在3米深处读数跳变，波动范围超过±2mm...'
     case 'health':
       return '请粘贴或描述设备监测数据，例如：水位计#3 日平均水位变化...'
+    case 'predict':
+      return '请提供一段时间的历史数据，我会预测未来趋势，例如：4P1最近3天轴力(KN): 1100, 1120, 1150, 1190...'
     default:
       return '输入你的问题，按 Enter 发送...'
   }
@@ -133,6 +138,9 @@ async function handleSend() {
         break
       case 'health':
         response = await healthMonitor(text, history)
+        break
+      case 'predict':
+        response = await predictDevice(text, history)
         break
       default:
         response = await chatAi(text, history)

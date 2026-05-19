@@ -59,6 +59,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/ai/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/auth/users/**").hasAnyRole("ADMIN")
+                        .requestMatchers("/api/work-order/**").authenticated()
+                        .requestMatchers("/api/device/**").authenticated()
+                        .requestMatchers("/api/monitor/**").authenticated()
+                        .requestMatchers("/api/dashboard/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

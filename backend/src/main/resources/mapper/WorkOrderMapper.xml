@@ -7,6 +7,7 @@
         <id column="id" property="id"/>
         <result column="order_no" property="orderNo"/>
         <result column="device_id" property="deviceId"/>
+        <result column="device_code" property="deviceCode"/>
         <result column="creator_id" property="creatorId"/>
         <result column="repairer_id" property="repairerId"/>
         <result column="fault_desc" property="faultDesc"/>
@@ -18,13 +19,16 @@
 
     <!-- 分页查询工单列表 -->
     <select id="selectList" resultMap="BaseResultMap">
-        SELECT * FROM work_order
+        SELECT wo.*, di.device_code
+        FROM work_order wo
+        LEFT JOIN device_info di ON wo.device_id = di.id
         <where>
-            <if test="status != null">AND status = #{status}</if>
-            <if test="deviceId != null">AND device_id = #{deviceId}</if>
-            <if test="repairerId != null">AND repairer_id = #{repairerId}</if>
+            <if test="status != null">AND wo.status = #{status}</if>
+            <if test="deviceId != null">AND wo.device_id = #{deviceId}</if>
+            <if test="repairerId != null">AND wo.repairer_id = #{repairerId}</if>
+            <if test="creatorId != null">AND wo.creator_id = #{creatorId}</if>
         </where>
-        ORDER BY id DESC
+        ORDER BY wo.id DESC
         LIMIT #{offset}, #{pageSize}
     </select>
 
@@ -35,12 +39,16 @@
             <if test="status != null">AND status = #{status}</if>
             <if test="deviceId != null">AND device_id = #{deviceId}</if>
             <if test="repairerId != null">AND repairer_id = #{repairerId}</if>
+            <if test="creatorId != null">AND creator_id = #{creatorId}</if>
         </where>
     </select>
 
     <!-- 根据ID查询工单详情 -->
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM work_order WHERE id = #{id}
+        SELECT wo.*, di.device_code
+        FROM work_order wo
+        LEFT JOIN device_info di ON wo.device_id = di.id
+        WHERE wo.id = #{id}
     </select>
 
     <!-- 查询当天最大工单序号 -->
@@ -100,7 +108,10 @@
 
     <!-- 获取待处理工单（大屏用） -->
     <select id="getPendingWorkOrders" resultType="java.util.Map">
-        SELECT * FROM work_order WHERE status &lt; 4 ORDER BY create_time DESC LIMIT 10
+        SELECT wo.*, di.device_code
+        FROM work_order wo
+        LEFT JOIN device_info di ON wo.device_id = di.id
+        WHERE wo.status &lt; 4 ORDER BY wo.create_time DESC LIMIT 10
     </select>
 
 </mapper>

@@ -1,13 +1,19 @@
 package cn.edu.cdu.pitsafety.system.controller;
 
 import cn.edu.cdu.pitsafety.common.Result;
+import cn.edu.cdu.pitsafety.system.entity.SysUser;
 import cn.edu.cdu.pitsafety.system.entity.WorkOrder;
 import cn.edu.cdu.pitsafety.system.dto.WorkOrderCreateRequest;
+import cn.edu.cdu.pitsafety.system.mapper.SysUserMapper;
 import cn.edu.cdu.pitsafety.system.service.WorkOrderService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/work-order")
@@ -16,7 +22,26 @@ public class WorkOrderController {
     @Autowired
     private WorkOrderService workOrderService;
 
-    // 工单列表（分页+筛选）
+    @Autowired
+    private SysUserMapper sysUserMapper;
+
+    // 获取当前登录用户
+    private SysUser currentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        return sysUserMapper.findByUsername(auth.getName());
+    }
+
+    // 获取当前用户角色列表
+    private java.util.List<String> currentRoles() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return java.util.Collections.emptyList();
+        return auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+    }
+
+    // 工单列表（分页+筛选 + 角色自动过滤）
     @GetMapping("/list")
     public Result<Map<String, Object>> list(
             @RequestParam(required = false) Integer status,
@@ -24,7 +49,22 @@ public class WorkOrderController {
             @RequestParam(required = false) Long repairerId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        Map<String, Object> data = workOrderService.getWorkOrderList(status, deviceId, repairerId, page, pageSize);
+
+        SysUser user = currentUser();
+        java.util.List<String> roles = currentRoles();
+        Long filterCreatorId = null;
+        Long filterRepairerId = repairerId;
+
+        // 角色过滤：BUYER 只看自己创建的，REPAIRER 只看指派给自己的
+        if (roles.contains("ROLE_BUYER") || roles.contains("BUYER")) {
+            filterCreatorId = user.getId();
+        } else if (roles.contains("ROLE_REPAIRER") || roles.contains("REPAIRER")) {
+            filterRepairerId = user.getId();
+        }
+        // ADMIN 不过滤
+
+        Map<String, Object> data = workOrderService.getWorkOrderList(
+                status, deviceId, filterRepairerId, filterCreatorId, page, pageSize);
         return Result.success(data);
     }
 

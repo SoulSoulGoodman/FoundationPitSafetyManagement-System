@@ -13,13 +13,15 @@ public interface WorkOrderMapper {
     List<WorkOrder> selectList(@Param("status") Integer status,
                                @Param("deviceId") Long deviceId,
                                @Param("repairerId") Long repairerId,
+                               @Param("creatorId") Long creatorId,
                                @Param("offset") int offset,
                                @Param("pageSize") int pageSize);
 
     // 查询工单总数（用于分页）
     int selectCount(@Param("status") Integer status,
                     @Param("deviceId") Long deviceId,
-                    @Param("repairerId") Long repairerId);
+                    @Param("repairerId") Long repairerId,
+                    @Param("creatorId") Long creatorId);
 
     // 根据ID查询工单详情
     WorkOrder selectById(@Param("id") Long id);

@@ -8,6 +8,7 @@ public class WorkOrder {
     private Long id;
     private String orderNo;
     private Long deviceId;
+    private String deviceCode;
     private Long creatorId;
     private Long repairerId;
     private String faultDesc;

@@ -28,7 +28,7 @@ const routes = [
         path: 'device',
         name: 'DeviceList',
         component: DeviceList,
-        meta: { title: '设备管理', requiresAuth: true }
+        meta: { title: '设备管理', requiresAuth: true, roles: ['ROLE_ADMIN'] }
       },
       {
         path: 'workorder',
@@ -71,6 +71,20 @@ router.beforeEach((to, from, next) => {
   if (!isAuthenticated && to.meta.requiresAuth) {
     next('/login')
     return
+  }
+
+  // 角色白名单校验
+  if (to.meta.roles) {
+    let userRoles = []
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      userRoles = user?.roles || user?.userInfo?.roles || []
+    } catch { /* ignore */ }
+    const allowed = to.meta.roles.some(r => userRoles.includes(r))
+    if (!allowed) {
+      next('/dashboard')
+      return
+    }
   }
   
   // 其他情况正常放行

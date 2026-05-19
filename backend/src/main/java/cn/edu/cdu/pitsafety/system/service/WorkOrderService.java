@@ -7,7 +7,7 @@ import java.util.Map;
 public interface WorkOrderService {
 
     // 工单列表（分页+筛选）
-    Map<String, Object> getWorkOrderList(Integer status, Long deviceId, Long repairerId, int page, int pageSize);
+    Map<String, Object> getWorkOrderList(Integer status, Long deviceId, Long repairerId, Long creatorId, int page, int pageSize);
 
     // 工单详情
     WorkOrder getWorkOrderById(Long id);

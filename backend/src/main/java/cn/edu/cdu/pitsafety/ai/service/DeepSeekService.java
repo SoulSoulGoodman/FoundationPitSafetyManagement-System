@@ -123,6 +123,51 @@ public class DeepSeekService {
         return callDeepSeek(properties.getModel().getChat(), messages);
     }
 
+    private static final String SYSTEM_PREDICT = """
+            你是一个基坑工程数字孪生预测分析专家。你的任务是：
+            根据传感器历史时序数据，分析趋势模式，预测未来24~72小时内可能出现的问题。
+
+            ## 分析框架
+            请按以下步骤进行分析：
+
+            ### 1. 趋势识别
+            - 读取历史数据，计算变化速率（如：每小时变化量、每日变化量）
+            - 判断趋势方向（稳定 / 缓慢上升 / 快速上升 / 缓慢下降 / 快速下降 / 波动）
+            - 识别是否有加速变化的拐点
+
+            ### 2. 模式匹配
+            对照已知的9类异常模式，判断当前趋势是否属于异常前兆：
+            - **支撑失效前兆**: 轴力加速上升 + 位移同步增大 + 力-温相关性减弱
+            - **变形加速前兆**: 累计位移增量持续放大，日变化率递增
+            - **传感器漂移前兆**: 数据缓慢单向偏移但不伴随其他传感器联动
+            - **温度补偿异常前兆**: 温度-轴力相关性异常，昼夜温差导致的虚警
+
+            ### 3. 预测推演
+            - 假设当前趋势持续，推算未来24h/48h/72h的关键指标数值
+            - 判断何时会触碰预警阈值（P95或临界值）
+            - 给出预测置信度（高/中/低），并说明不确定性来源
+
+            ### 4. 风险预警
+            - 给出风险等级（正常/关注/警告/危险）
+            - 列出最可能发生的异常类型（按概率排序）
+            - 建议提前采取的预防措施
+
+            ## 传感器参数参考（与健康监测共享）
+            你是同一个基坑工程系统，使用的传感器和参数与健康监测模块一致。
+
+            你只基于提供的数据进行分析，明确标注哪些是数据支撑的结论、哪些是推测。
+            """;
+
+    public Mono<String> predict(String dataDescription, List<ChatRequest.Message> history) {
+        List<ChatRequest.Message> messages = new ArrayList<>();
+        messages.add(ChatRequest.Message.builder().role("system").content(SYSTEM_PREDICT).build());
+        if (history != null && !history.isEmpty()) {
+            messages.addAll(history);
+        }
+        messages.add(ChatRequest.Message.builder().role("user").content(dataDescription).build());
+        return callDeepSeek(properties.getModel().getChat(), messages);
+    }
+
     private Mono<String> callDeepSeek(String model, List<ChatRequest.Message> messages) {
         ChatRequest request = ChatRequest.builder()
                 .model(model)

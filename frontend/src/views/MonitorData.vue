@@ -36,6 +36,11 @@
             <el-option label="200条" :value="200" />
           </el-select>
         </el-col>
+        <el-col :span="2">
+          <el-button type="warning" @click="handlePredict" :loading="predicting" :disabled="!currentSensor">
+            🔮 智能预测
+          </el-button>
+        </el-col>
       </el-row>
     </div>
 
@@ -77,11 +82,33 @@
         />
       </div>
     </div>
+
+    <el-dialog
+      v-model="showPredict"
+      title="🔮 AI 智能预测"
+      width="700px"
+      :close-on-click-modal="false"
+    >
+      <div class="predict-info">
+        <el-tag>{{ currentSensor }}</el-tag>
+        <span style="margin: 0 8px; color: #909399">{{ predictTimeRange }}</span>
+      </div>
+      <div v-if="predicting" class="predict-loading">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>AI 正在分析数据趋势，请稍候...</span>
+      </div>
+      <div v-else-if="predictResult" class="predict-result"
+           v-html="formatMarkdown(predictResult)" />
+      <template #footer>
+        <el-button @click="showPredict = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick, computed } from 'vue'
+import { Loading } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import {
   getTotalStation,
@@ -89,6 +116,7 @@ import {
   getSteelTemperature,
   getSensors
 } from '@/api/monitor'
+import { predictAuto } from '@/api/ai'
 
 const chartRef = ref(null)
 let chartInstance = null
@@ -107,6 +135,17 @@ const pagination = reactive({
   currentPage: 1,
   pageSize: 100,
   total: 0
+})
+
+const showPredict = ref(false)
+const predicting = ref(false)
+const predictResult = ref('')
+
+const predictTimeRange = computed(() => {
+  if (timeRange.value && timeRange.value.length === 2) {
+    return `${timeRange.value[0]} ~ ${timeRange.value[1]}`
+  }
+  return `${defaultStartTime} ~ ${defaultEndTime}`
 })
 
 const getApiMethod = () => {
@@ -255,6 +294,43 @@ const loadSensorList = async () => {
   }
 }
 
+const handlePredict = async () => {
+  if (!currentSensor.value) return
+  showPredict.value = true
+  predicting.value = true
+  predictResult.value = ''
+  try {
+    const startTime = (timeRange.value && timeRange.value.length === 2) ? timeRange.value[0] : defaultStartTime
+    const endTime = (timeRange.value && timeRange.value.length === 2) ? timeRange.value[1] : defaultEndTime
+    const result = await predictAuto({
+      sensorCode: currentSensor.value,
+      startTime,
+      endTime
+    })
+    predictResult.value = result || 'AI 未返回预测结果'
+  } catch (e) {
+    predictResult.value = '预测请求失败，请检查后端服务和 API Key 配置。'
+  } finally {
+    predicting.value = false
+  }
+}
+
+const formatMarkdown = (text) => {
+  if (!text) return ''
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/### (.*)/g, '<h4>$1</h4>')
+    .replace(/## (.*)/g, '<h3>$1</h3>')
+    .replace(/# (.*)/g, '<h2>$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    .replace(/- (.*)/g, '<li>$1</li>')
+    .replace(/\n\n/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>')
+}
+
 onMounted(() => {
   loadSensorList()
 })
@@ -294,5 +370,47 @@ onMounted(() => {
 .pagination {
   margin-top: 16px;
   text-align: right;
+}
+
+.predict-info {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.predict-loading {
+  text-align: center;
+  padding: 40px;
+  color: #909399;
+  font-size: 14px;
+}
+
+.predict-loading .el-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.predict-result {
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  line-height: 1.8;
+  font-size: 14px;
+}
+
+.predict-result h3 {
+  margin: 16px 0 8px;
+  color: #303133;
+}
+
+.predict-result h4 {
+  margin: 12px 0 6px;
+  color: #409EFF;
+}
+
+.predict-result li {
+  margin: 4px 0 4px 20px;
 }
 </style>

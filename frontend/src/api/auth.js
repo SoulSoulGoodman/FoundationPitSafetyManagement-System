@@ -9,7 +9,7 @@ export function getUserInfo() {
 }
 
 export function getUsers() {
-  return request.get('/user/list')
+  return request.get('/auth/users')
 }
 
 export function createUser(data) {

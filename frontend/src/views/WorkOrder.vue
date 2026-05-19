@@ -2,7 +2,7 @@
   <div class="workorder">
     <div class="page-header">
       <h2>工单调度</h2>
-      <el-button type="primary" @click="handleCreateWorkOrder">
+      <el-button v-if="isAdmin || isBuyer" type="primary" @click="handleCreateWorkOrder">
         <el-icon><Plus /></el-icon>
         创建工单
       </el-button>
@@ -54,11 +54,11 @@
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="scope">
             <el-button type="primary" size="small" @click="handleView(scope.row)">查看</el-button>
-            <el-button v-if="scope.row.status === 0" type="success" size="small" @click="handleAssign(scope.row)">派单</el-button>
-            <el-button v-if="scope.row.status === 1" type="warning" size="small" @click="handleStart(scope.row)">签到</el-button>
-            <el-button v-if="scope.row.status === 2" type="primary" size="small" @click="handleComplete(scope.row)">完成</el-button>
-            <el-button v-if="scope.row.status === 3" type="success" size="small" @click="handleAccept(scope.row)">验收</el-button>
-            <el-button v-if="[0, 1].includes(scope.row.status)" type="danger" size="small" @click="handleCancel(scope.row)">取消</el-button>
+            <el-button v-if="scope.row.status === 0 && isAdmin" type="success" size="small" @click="handleAssign(scope.row)">派单</el-button>
+            <el-button v-if="scope.row.status === 1 && isRepairer" type="warning" size="small" @click="handleStart(scope.row)">签到</el-button>
+            <el-button v-if="scope.row.status === 2 && isRepairer" type="primary" size="small" @click="handleComplete(scope.row)">完成</el-button>
+            <el-button v-if="scope.row.status === 3 && (isAdmin || isBuyer)" type="success" size="small" @click="handleAccept(scope.row)">验收</el-button>
+            <el-button v-if="[0, 1].includes(scope.row.status) && (isAdmin || isBuyer)" type="danger" size="small" @click="handleCancel(scope.row)">取消</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -92,8 +92,15 @@
 
     <el-dialog v-model="createVisible" title="创建工单" width="500px" :close-on-click-modal="false">
       <el-form :model="createForm" :rules="createRules" ref="createFormRef" label-width="100px">
-        <el-form-item label="设备ID" prop="deviceId">
-          <el-input-number v-model="createForm.deviceId" :min="1" style="width: 100%" />
+        <el-form-item label="设备" prop="deviceId">
+          <el-select v-model="createForm.deviceId" placeholder="请选择设备" filterable style="width:100%">
+            <el-option
+              v-for="d in devices"
+              :key="d.id"
+              :label="d.deviceCode + ' - ' + d.deviceName"
+              :value="d.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="故障描述" prop="faultDesc">
           <el-input v-model="createForm.faultDesc" type="textarea" :rows="3" placeholder="请输入故障描述" />
@@ -116,11 +123,36 @@
         <el-button type="primary" @click="handleCompleteSubmit">提交</el-button>
       </template>
     </el-dialog>
+
+    <!-- 派单对话框 -->
+    <el-dialog v-model="assignVisible" title="派发工单" width="420px" :close-on-click-modal="false">
+      <el-form label-width="90px">
+        <el-form-item label="工单编号">
+          <el-tag>{{ currentOrder?.orderNo }}</el-tag>
+        </el-form-item>
+        <el-form-item label="设备编码">{{ currentOrder?.deviceCode || currentOrder?.deviceId || '-' }}</el-form-item>
+        <el-form-item label="故障描述">{{ currentOrder?.faultDesc }}</el-form-item>
+        <el-form-item label="维修工程师">
+          <el-select v-model="selectedRepairerId" placeholder="请选择维修工程师" style="width:100%">
+            <el-option
+              v-for="r in repairers"
+              :key="r.id"
+              :label="r.realName + ' (' + r.username + ')'"
+              :value="r.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="assignVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!selectedRepairerId" @click="handleAssignSubmit">确定派单</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import {
@@ -133,21 +165,27 @@ import {
   acceptWorkOrder,
   cancelWorkOrder
 } from '@/api/workorder'
+import { getUsers } from '@/api/auth'
+import { getDeviceList } from '@/api/device'
 
 const loading = ref(false)
 const detailVisible = ref(false)
 const createVisible = ref(false)
 const completeVisible = ref(false)
+const assignVisible = ref(false)
+const selectedRepairerId = ref(null)
+const repairers = ref([])
+const devices = ref([])
 const currentOrder = ref(null)
 const createFormRef = ref()
 const completeFormRef = ref()
 
 const searchForm = reactive({ status: null })
-const createForm = reactive({ deviceId: 1, creatorId: null, faultDesc: '' })
+const createForm = reactive({ deviceId: null, creatorId: null, faultDesc: '' })
 const completeForm = reactive({ repairLog: '' })
 
 const createRules = {
-  deviceId: [{ required: true, message: '请输入设备ID', trigger: 'blur' }],
+  deviceId: [{ required: true, message: '请选择设备', trigger: 'change' }],
   faultDesc: [{ required: true, message: '请输入故障描述', trigger: 'blur' }]
 }
 
@@ -170,6 +208,20 @@ const getCurrentUserId = () => {
   }
 }
 
+const userRoles = computed(() => {
+  const userRaw = localStorage.getItem('user')
+  if (!userRaw) return []
+  try {
+    const user = JSON.parse(userRaw)
+    return user?.roles || user?.userInfo?.roles || []
+  } catch {
+    return []
+  }
+})
+const isAdmin = computed(() => userRoles.value.includes('ROLE_ADMIN'))
+const isBuyer = computed(() => userRoles.value.includes('ROLE_BUYER'))
+const isRepairer = computed(() => userRoles.value.includes('ROLE_REPAIRER'))
+
 const getStatusType = (status) => {
   const map = { 0: 'info', 1: 'primary', 2: 'warning', 3: 'orange', 4: 'success' }
   return map[status] || 'info'
@@ -184,7 +236,7 @@ const loadData = async () => {
   loading.value = true
   try {
     const data = await getWorkOrderList({
-      status: searchForm.status || undefined,
+      status: searchForm.status != null ? searchForm.status : undefined,
       page: pagination.currentPage,
       pageSize: pagination.pageSize
     })
@@ -212,10 +264,11 @@ const handleReset = () => {
   loadData()
 }
 
-const handleCreateWorkOrder = () => {
-  createForm.deviceId = 1
+const handleCreateWorkOrder = async () => {
+  createForm.deviceId = null
   createForm.creatorId = getCurrentUserId()
   createForm.faultDesc = ''
+  await fetchDevices()
   createVisible.value = true
 }
 
@@ -247,19 +300,42 @@ const handleView = async (row) => {
 }
 
 const handleAssign = async (row) => {
-  const repairerId = getCurrentUserId()
-  if (!repairerId) {
-    ElMessage.error('当前缺少维修人员ID，无法派单，请先使用真实账号登录')
-    return
-  }
+  currentOrder.value = row
+  selectedRepairerId.value = null
+  await fetchRepairers()
+  assignVisible.value = true
+}
+
+const handleAssignSubmit = async () => {
   try {
-    await ElMessageBox.confirm(`确定派发工单 ${row.orderNo} 吗？`,'派单确认',{
-      confirmButtonText: '确定派单', cancelButtonText: '取消', type: 'warning'
-    })
-    await assignWorkOrder(row.id, repairerId)
+    await assignWorkOrder(currentOrder.value.id, selectedRepairerId.value)
     ElMessage.success('派单成功')
+    assignVisible.value = false
     loadData()
-  } catch (_) {}
+  } catch {
+    ElMessage.error('派单失败')
+  }
+}
+
+const fetchRepairers = async () => {
+  try {
+    const users = await getUsers()
+    repairers.value = users.filter(u => {
+      const roles = u.roles || []
+      return roles.includes('ROLE_REPAIRER') || roles.includes('现场维修工程师')
+    })
+  } catch {
+    repairers.value = []
+  }
+}
+
+const fetchDevices = async () => {
+  try {
+    const data = await getDeviceList({ pageSize: 100 })
+    devices.value = data?.list || data || []
+  } catch {
+    devices.value = []
+  }
 }
 
 const handleStart = async (row) => {

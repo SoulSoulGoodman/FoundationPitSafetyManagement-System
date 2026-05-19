@@ -135,9 +135,9 @@ INSERT INTO `sys_role` (`id`, `role_name`, `role_code`) VALUES
 (2, '施工方购买用户', 'ROLE_BUYER'),
 (3, '现场维修工程师', 'ROLE_REPAIRER');
 
--- 2. 初始化超管账号 (密码默认明文 123456，供开发期使用)
+-- 2. 初始化超管账号 (密码 BCrypt: 123456)
 INSERT INTO `sys_user` (`id`, `username`, `password`, `real_name`) VALUES 
-(1, 'admin', '123456', '系统超管');
+(1, 'admin', '$2b$10$9t6PEXUxdpMNbLidCIovZOqYYUwEyYkk/8E28ydRR6ZQOUC53ueH6', '系统超管');
 
 -- 3. 关联超管角色
 INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES (1, 1);

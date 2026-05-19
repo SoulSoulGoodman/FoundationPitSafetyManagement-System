@@ -31,10 +31,10 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     }
 
     @Override
-    public Map<String, Object> getWorkOrderList(Integer status, Long deviceId, Long repairerId, int page, int pageSize) {
+    public Map<String, Object> getWorkOrderList(Integer status, Long deviceId, Long repairerId, Long creatorId, int page, int pageSize) {
         int offset = (page - 1) * pageSize;
-        List<WorkOrder> list = workOrderMapper.selectList(status, deviceId, repairerId, offset, pageSize);
-        int total = workOrderMapper.selectCount(status, deviceId, repairerId);
+        List<WorkOrder> list = workOrderMapper.selectList(status, deviceId, repairerId, creatorId, offset, pageSize);
+        int total = workOrderMapper.selectCount(status, deviceId, repairerId, creatorId);
         Map<String, Object> result = new HashMap<>();
         result.put("list", list);
         result.put("total", total);
